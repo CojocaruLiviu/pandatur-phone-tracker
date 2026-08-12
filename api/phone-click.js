@@ -1,12 +1,17 @@
 export default async function handler(req, res) {
 
-    // ==============================
+    // ==========================================
     // CORS
-    // ==============================
+    // ==========================================
 
     res.setHeader(
         'Access-Control-Allow-Origin',
         'https://pandatur.md'
+    );
+
+    res.setHeader(
+        'Access-Control-Allow-Credentials',
+        'true'
     );
 
     res.setHeader(
@@ -25,20 +30,20 @@ export default async function handler(req, res) {
     );
 
 
-    // ==============================
-    // PREFLIGHT REQUEST
-    // ==============================
+    // ==========================================
+    // OPTIONS / PREFLIGHT
+    // ==========================================
 
     if (req.method === 'OPTIONS') {
 
-        return res.status(200).end();
+        return res.status(204).end();
 
     }
 
 
-    // ==============================
+    // ==========================================
     // ONLY POST
-    // ==============================
+    // ==========================================
 
     if (req.method !== 'POST') {
 
@@ -52,50 +57,112 @@ export default async function handler(req, res) {
 
     try {
 
-        console.log('=================================');
-        console.log('📥 PHONE CLICK');
-        console.log('=================================');
+        // ==========================================
+        // READ BODY
+        // ==========================================
+
+        let data = req.body;
 
 
-        // ==============================
-        // READ DATA
-        // ==============================
+        // Dacă body vine ca string
+        if (typeof data === 'string') {
 
-        const {
-            phone,
-            page,
-            title,
-            referrer,
+            try {
+
+                data = JSON.parse(data);
+
+            } catch (error) {
+
+                console.error(
+                    'JSON parse error:',
+                    error
+                );
+
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid JSON'
+                });
+
+            }
+
+        }
+
+
+        // ==========================================
+        // DATA
+        // ==========================================
+
+        const phone =
+            data?.phone || '';
+
+        const page =
+            data?.page || '';
+
+        const title =
+            data?.title || '';
+
+        const referrer =
+            data?.referrer || '';
+
+        const timestamp =
+            data?.timestamp || '';
+
+
+        console.log(
+            '======================================'
+        );
+
+        console.log(
+            '📥 PANDA TOUR PHONE CLICK'
+        );
+
+        console.log(
+            'Phone:',
+            phone
+        );
+
+        console.log(
+            'Page:',
+            page
+        );
+
+        console.log(
+            'Title:',
+            title
+        );
+
+        console.log(
+            'Referrer:',
+            referrer
+        );
+
+        console.log(
+            'Timestamp:',
             timestamp
-        } = req.body || {};
+        );
+
+        console.log(
+            '======================================'
+        );
 
 
-        console.log('Phone:', phone);
-        console.log('Page:', page);
-        console.log('Title:', title);
-        console.log('Referrer:', referrer);
-        console.log('Timestamp:', timestamp);
-
-
-        // ==============================
-        // VALIDATE
-        // ==============================
+        // ==========================================
+        // VALIDATION
+        // ==========================================
 
         if (!phone || !page) {
 
-            console.error('❌ Missing phone or page');
-
             return res.status(400).json({
                 success: false,
-                error: 'phone/page missing'
+                error: 'Phone or page is missing'
             });
 
         }
 
 
-        // ==============================
+        // ==========================================
         // TELEGRAM SETTINGS
-        // ==============================
+        // ==========================================
 
         const BOT_TOKEN =
             process.env.TELEGRAM_BOT_TOKEN;
@@ -105,12 +172,12 @@ export default async function handler(req, res) {
 
 
         console.log(
-            'Bot token:',
+            'BOT TOKEN:',
             BOT_TOKEN ? 'OK' : 'MISSING'
         );
 
         console.log(
-            'Chat ID:',
+            'CHAT ID:',
             CHAT_ID ? 'OK' : 'MISSING'
         );
 
@@ -129,9 +196,9 @@ export default async function handler(req, res) {
         }
 
 
-        // ==============================
-        // FORMAT PHONE
-        // ==============================
+        // ==========================================
+        // CLEAN PHONE
+        // ==========================================
 
         const cleanPhone =
             String(phone)
@@ -139,39 +206,40 @@ export default async function handler(req, res) {
                 .trim();
 
 
-        // ==============================
-        // FORMAT DATE
-        // ==============================
+        // ==========================================
+        // DATE
+        // ==========================================
 
-        let formattedDate = timestamp || '-';
+        let formattedDate = '-';
 
-        try {
+        if (timestamp) {
 
-            formattedDate =
-                new Intl.DateTimeFormat(
-                    'ro-RO',
-                    {
-                        dateStyle: 'short',
-                        timeStyle: 'medium',
-                        timeZone: 'Europe/Chisinau'
-                    }
-                ).format(
-                    new Date(timestamp)
-                );
+            try {
 
-        } catch (error) {
+                formattedDate =
+                    new Intl.DateTimeFormat(
+                        'ro-RO',
+                        {
+                            dateStyle: 'short',
+                            timeStyle: 'medium',
+                            timeZone: 'Europe/Chisinau'
+                        }
+                    ).format(
+                        new Date(timestamp)
+                    );
 
-            console.error(
-                'Date formatting error:',
-                error
-            );
+            } catch (error) {
+
+                formattedDate = timestamp;
+
+            }
 
         }
 
 
-        // ==============================
+        // ==========================================
         // TELEGRAM MESSAGE
-        // ==============================
+        // ==========================================
 
         const message =
 `📞 <b>CLICK TELEFON</b>
@@ -192,12 +260,14 @@ ${escapeHtml(formattedDate)}
 ${escapeHtml(referrer || '-')}`;
 
 
-        console.log('📨 Sending Telegram...');
+        console.log(
+            '📨 Sending Telegram message...'
+        );
 
 
-        // ==============================
+        // ==========================================
         // SEND TELEGRAM
-        // ==============================
+        // ==========================================
 
         const telegramResponse =
             await fetch(
@@ -220,6 +290,7 @@ ${escapeHtml(referrer || '-')}`;
                         disable_web_page_preview: false
 
                     })
+
                 }
             );
 
@@ -234,9 +305,9 @@ ${escapeHtml(referrer || '-')}`;
         );
 
 
-        // ==============================
+        // ==========================================
         // TELEGRAM ERROR
-        // ==============================
+        // ==========================================
 
         if (
             !telegramResponse.ok ||
@@ -244,7 +315,7 @@ ${escapeHtml(referrer || '-')}`;
         ) {
 
             console.error(
-                '❌ Telegram error:',
+                '❌ TELEGRAM ERROR:',
                 telegramResult
             );
 
@@ -261,18 +332,20 @@ ${escapeHtml(referrer || '-')}`;
         }
 
 
-        // ==============================
+        // ==========================================
         // SUCCESS
-        // ==============================
+        // ==========================================
 
         console.log(
-            '✅ Telegram message sent'
+            '✅ TELEGRAM MESSAGE SENT'
         );
 
 
         return res.status(200).json({
 
-            success: true
+            success: true,
+
+            message: 'Telegram message sent'
 
         });
 
@@ -298,9 +371,9 @@ ${escapeHtml(referrer || '-')}`;
 }
 
 
-// ======================================
+// ==========================================
 // HTML ESCAPE
-// ======================================
+// ==========================================
 
 function escapeHtml(value) {
 
