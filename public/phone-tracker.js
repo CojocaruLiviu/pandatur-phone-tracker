@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const API_URL = 'https://NUMELE-TAU.vercel.app/api/phone-click';
+    const API_URL = 'https://pandatur-phone-tracker.vercel.app/api/phone-click';
 
     function sendClick(link) {
         try {
