@@ -2,19 +2,14 @@
 
     'use strict';
 
+    const API_URL =
+        'https://pandatur-phone-tracker.vercel.app/api/phone-click';
+
 
     console.log(
         '✅ PandaTour Phone Tracker LOADED'
     );
 
-
-    const API_URL =
-        'https://pandatur-phone-tracker.vercel.app/api/phone-click';
-
-
-    // ==========================================
-    // SEND CLICK
-    // ==========================================
 
     function sendClick(link) {
 
@@ -54,16 +49,14 @@
             // SENDBEACON
             // ======================================
 
-            if (
-                navigator.sendBeacon
-            ) {
+            if (navigator.sendBeacon) {
 
                 const blob =
                     new Blob(
                         [body],
                         {
                             type:
-                                'application/json'
+                                'text/plain;charset=UTF-8'
                         }
                     );
 
@@ -91,20 +84,21 @@
 
 
             // ======================================
-            // FALLBACK FETCH
+            // FALLBACK
             // ======================================
 
             fetch(
                 API_URL,
                 {
-
                     method: 'POST',
 
+                    mode: 'no-cors',
+
+                    credentials: 'omit',
+
                     headers: {
-
                         'Content-Type':
-                            'application/json'
-
+                            'text/plain;charset=UTF-8'
                     },
 
                     body: body,
@@ -113,41 +107,21 @@
 
                 }
             )
+            .then(function () {
 
-            .then(
-                function (response) {
+                console.log(
+                    '✅ Tracking request sent'
+                );
 
-                    console.log(
-                        '📡 API STATUS:',
-                        response.status
-                    );
+            })
+            .catch(function (error) {
 
-                    return response.text();
+                console.error(
+                    '❌ Tracking error:',
+                    error
+                );
 
-                }
-            )
-
-            .then(
-                function (result) {
-
-                    console.log(
-                        '📨 API RESPONSE:',
-                        result
-                    );
-
-                }
-            )
-
-            .catch(
-                function (error) {
-
-                    console.error(
-                        '❌ API ERROR:',
-                        error
-                    );
-
-                }
-            );
+            });
 
 
         } catch (error) {
@@ -163,15 +137,12 @@
 
 
     // ==========================================
-    // CLICK LISTENER
+    // DETECT ALL TEL LINKS
     // ==========================================
 
     document.addEventListener(
-
         'click',
-
         function (event) {
-
 
             const link =
                 event.target.closest(
@@ -194,11 +165,8 @@
 
             sendClick(link);
 
-
         },
-
         true
-
     );
 
 
