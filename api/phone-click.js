@@ -1,9 +1,5 @@
 export default async function handler(req, res) {
 
-    // ==========================================
-    // CORS
-    // ==========================================
-
     res.setHeader(
         'Access-Control-Allow-Origin',
         'https://pandatur.md'
@@ -24,145 +20,43 @@ export default async function handler(req, res) {
         'Content-Type'
     );
 
-    res.setHeader(
-        'Access-Control-Max-Age',
-        '86400'
-    );
-
-
-    // ==========================================
-    // OPTIONS / PREFLIGHT
-    // ==========================================
-
     if (req.method === 'OPTIONS') {
-
         return res.status(204).end();
-
     }
 
-
-    // ==========================================
-    // ONLY POST
-    // ==========================================
-
     if (req.method !== 'POST') {
-
         return res.status(405).json({
             success: false,
             error: 'POST only'
         });
-
     }
-
 
     try {
 
-        // ==========================================
-        // READ BODY
-        // ==========================================
-
         let data = req.body;
 
-
-        // Dacă body vine ca string
         if (typeof data === 'string') {
-
             try {
-
                 data = JSON.parse(data);
-
             } catch (error) {
-
-                console.error(
-                    'JSON parse error:',
-                    error
-                );
-
                 return res.status(400).json({
                     success: false,
                     error: 'Invalid JSON'
                 });
-
             }
-
         }
 
-
-        // ==========================================
-        // DATA
-        // ==========================================
-
-        const phone =
-            data?.phone || '';
-
-        const page =
-            data?.page || '';
-
-        const title =
-            data?.title || '';
-
-        const referrer =
-            data?.referrer || '';
-
-        const timestamp =
-            data?.timestamp || '';
-
-
-        console.log(
-            '======================================'
-        );
-
-        console.log(
-            '📥 PANDA TOUR PHONE CLICK'
-        );
-
-        console.log(
-            'Phone:',
-            phone
-        );
-
-        console.log(
-            'Page:',
-            page
-        );
-
-        console.log(
-            'Title:',
-            title
-        );
-
-        console.log(
-            'Referrer:',
-            referrer
-        );
-
-        console.log(
-            'Timestamp:',
-            timestamp
-        );
-
-        console.log(
-            '======================================'
-        );
-
-
-        // ==========================================
-        // VALIDATION
-        // ==========================================
+        const phone = data?.phone || '';
+        const page = data?.page || '';
+        const title = data?.title || '';
+        const timestamp = data?.timestamp || '';
 
         if (!phone || !page) {
-
             return res.status(400).json({
                 success: false,
                 error: 'Phone or page is missing'
             });
-
         }
-
-
-        // ==========================================
-        // TELEGRAM SETTINGS
-        // ==========================================
 
         const BOT_TOKEN =
             process.env.TELEGRAM_BOT_TOKEN;
@@ -170,52 +64,21 @@ export default async function handler(req, res) {
         const CHAT_ID =
             process.env.TELEGRAM_CHAT_ID;
 
-
-        console.log(
-            'BOT TOKEN:',
-            BOT_TOKEN ? 'OK' : 'MISSING'
-        );
-
-        console.log(
-            'CHAT ID:',
-            CHAT_ID ? 'OK' : 'MISSING'
-        );
-
-
         if (!BOT_TOKEN || !CHAT_ID) {
-
-            console.error(
-                '❌ Telegram environment variables missing'
-            );
-
             return res.status(500).json({
                 success: false,
                 error: 'Telegram environment variables missing'
             });
-
         }
 
-
-        // ==========================================
-        // CLEAN PHONE
-        // ==========================================
-
-        const cleanPhone =
-            String(phone)
-                .replace(/^tel:/i, '')
-                .trim();
-
-
-        // ==========================================
-        // DATE
-        // ==========================================
+        const cleanPhone = String(phone)
+            .replace(/^tel:/i, '')
+            .trim();
 
         let formattedDate = '-';
 
         if (timestamp) {
-
             try {
-
                 formattedDate =
                     new Intl.DateTimeFormat(
                         'ro-RO',
@@ -224,22 +87,21 @@ export default async function handler(req, res) {
                             timeStyle: 'medium',
                             timeZone: 'Europe/Chisinau'
                         }
-                    ).format(
-                        new Date(timestamp)
-                    );
-
+                    ).format(new Date(timestamp));
             } catch (error) {
-
                 formattedDate = timestamp;
-
             }
-
         }
 
+        const ip =
+            req.headers['x-forwarded-for'] ||
+            req.headers['x-real-ip'] ||
+            req.socket?.remoteAddress ||
+            'Necunoscut';
 
-        // ==========================================
-        // TELEGRAM MESSAGE
-        // ==========================================
+        const clientIp = String(ip)
+            .split(',')[0]
+            .trim();
 
         const message =
 `📞 <b>CLICK TELEFON</b>
@@ -256,137 +118,61 @@ ${escapeHtml(title || '-')}
 🕐 <b>Data:</b>
 ${escapeHtml(formattedDate)}
 
-🔗 <b>Referrer:</b>
-${escapeHtml(referrer || '-')}`;
-
-
-        console.log(
-            '📨 Sending Telegram message...'
-        );
-
-
-        // ==========================================
-        // SEND TELEGRAM
-        // ==========================================
+🌍 <b>IP:</b>
+${escapeHtml(clientIp)}`;
 
         const telegramResponse =
             await fetch(
                 `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
                 {
                     method: 'POST',
-
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type':
+                            'application/json'
                     },
-
                     body: JSON.stringify({
-
                         chat_id: CHAT_ID,
-
                         text: message,
-
                         parse_mode: 'HTML',
-
                         disable_web_page_preview: false
-
                     })
-
                 }
             );
 
-
         const telegramResult =
             await telegramResponse.json();
-
-
-        console.log(
-            'Telegram response:',
-            telegramResult
-        );
-
-
-        // ==========================================
-        // TELEGRAM ERROR
-        // ==========================================
 
         if (
             !telegramResponse.ok ||
             !telegramResult.ok
         ) {
-
-            console.error(
-                '❌ TELEGRAM ERROR:',
-                telegramResult
-            );
-
             return res.status(500).json({
-
                 success: false,
-
-                error: 'Telegram API error',
-
-                telegram: telegramResult
-
+                error: 'Telegram API error'
             });
-
         }
 
-
-        // ==========================================
-        // SUCCESS
-        // ==========================================
-
-        console.log(
-            '✅ TELEGRAM MESSAGE SENT'
-        );
-
-
         return res.status(200).json({
-
-            success: true,
-
-            message: 'Telegram message sent'
-
+            success: true
         });
-
 
     } catch (error) {
 
-        console.error(
-            '❌ SERVER ERROR:',
-            error
-        );
-
-
         return res.status(500).json({
-
             success: false,
-
             error: error.message
-
         });
 
     }
-
 }
-
-
-// ==========================================
-// HTML ESCAPE
-// ==========================================
 
 function escapeHtml(value) {
 
     return String(value)
-
         .replace(/&/g, '&amp;')
-
         .replace(/</g, '&lt;')
-
         .replace(/>/g, '&gt;')
-
         .replace(/"/g, '&quot;')
-
         .replace(/'/g, '&#039;');
 
 }
