@@ -1,12 +1,65 @@
 export default async function handler(req, res) {
 
-    if (req.method !== 'POST') {
-        return res.status(405).json({
-            success: false
-        });
+    // ==============================
+    // CORS
+    // ==============================
+
+    res.setHeader(
+        'Access-Control-Allow-Origin',
+        'https://pandatur.md'
+    );
+
+    res.setHeader(
+        'Access-Control-Allow-Methods',
+        'POST, OPTIONS'
+    );
+
+    res.setHeader(
+        'Access-Control-Allow-Headers',
+        'Content-Type'
+    );
+
+    res.setHeader(
+        'Access-Control-Max-Age',
+        '86400'
+    );
+
+
+    // ==============================
+    // PREFLIGHT REQUEST
+    // ==============================
+
+    if (req.method === 'OPTIONS') {
+
+        return res.status(200).end();
+
     }
 
+
+    // ==============================
+    // ONLY POST
+    // ==============================
+
+    if (req.method !== 'POST') {
+
+        return res.status(405).json({
+            success: false,
+            error: 'POST only'
+        });
+
+    }
+
+
     try {
+
+        console.log('=================================');
+        console.log('📥 PHONE CLICK');
+        console.log('=================================');
+
+
+        // ==============================
+        // READ DATA
+        // ==============================
 
         const {
             phone,
@@ -16,42 +69,115 @@ export default async function handler(req, res) {
             timestamp
         } = req.body || {};
 
+
+        console.log('Phone:', phone);
+        console.log('Page:', page);
+        console.log('Title:', title);
+        console.log('Referrer:', referrer);
+        console.log('Timestamp:', timestamp);
+
+
+        // ==============================
+        // VALIDATE
+        // ==============================
+
         if (!phone || !page) {
+
+            console.error('❌ Missing phone or page');
+
             return res.status(400).json({
                 success: false,
-                error: 'Missing data'
+                error: 'phone/page missing'
             });
+
         }
 
-        const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-        const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+        // ==============================
+        // TELEGRAM SETTINGS
+        // ==============================
+
+        const BOT_TOKEN =
+            process.env.TELEGRAM_BOT_TOKEN;
+
+        const CHAT_ID =
+            process.env.TELEGRAM_CHAT_ID;
+
+
+        console.log(
+            'Bot token:',
+            BOT_TOKEN ? 'OK' : 'MISSING'
+        );
+
+        console.log(
+            'Chat ID:',
+            CHAT_ID ? 'OK' : 'MISSING'
+        );
+
 
         if (!BOT_TOKEN || !CHAT_ID) {
-            console.error('Telegram settings missing');
+
+            console.error(
+                '❌ Telegram environment variables missing'
+            );
 
             return res.status(500).json({
                 success: false,
-                error: 'Telegram settings missing'
+                error: 'Telegram environment variables missing'
             });
+
         }
 
-        let date = timestamp;
+
+        // ==============================
+        // FORMAT PHONE
+        // ==============================
+
+        const cleanPhone =
+            String(phone)
+                .replace(/^tel:/i, '')
+                .trim();
+
+
+        // ==============================
+        // FORMAT DATE
+        // ==============================
+
+        let formattedDate = timestamp || '-';
 
         try {
-            date = new Intl.DateTimeFormat('ro-RO', {
-                dateStyle: 'short',
-                timeStyle: 'medium',
-                timeZone: 'Europe/Chisinau'
-            }).format(new Date(timestamp));
-        } catch (e) {}
 
-        const cleanPhone = String(phone)
-            .replace(/^tel:/i, '');
+            formattedDate =
+                new Intl.DateTimeFormat(
+                    'ro-RO',
+                    {
+                        dateStyle: 'short',
+                        timeStyle: 'medium',
+                        timeZone: 'Europe/Chisinau'
+                    }
+                ).format(
+                    new Date(timestamp)
+                );
+
+        } catch (error) {
+
+            console.error(
+                'Date formatting error:',
+                error
+            );
+
+        }
+
+
+        // ==============================
+        // TELEGRAM MESSAGE
+        // ==============================
 
         const message =
 `📞 <b>CLICK TELEFON</b>
 
-📱 <b>Număr:</b> ${escapeHtml(cleanPhone)}
+📱 <b>Număr:</b>
+${escapeHtml(cleanPhone)}
 
 🌐 <b>Pagina:</b>
 ${escapeHtml(page)}
@@ -60,65 +186,134 @@ ${escapeHtml(page)}
 ${escapeHtml(title || '-')}
 
 🕐 <b>Data:</b>
-${escapeHtml(date || '-')}
+${escapeHtml(formattedDate)}
 
 🔗 <b>Referrer:</b>
 ${escapeHtml(referrer || '-')}`;
 
-        const response = await fetch(
-            `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-            {
-                method: 'POST',
 
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+        console.log('📨 Sending Telegram...');
 
-                body: JSON.stringify({
-                    chat_id: CHAT_ID,
-                    text: message,
-                    parse_mode: 'HTML',
-                    disable_web_page_preview: false
-                })
-            }
+
+        // ==============================
+        // SEND TELEGRAM
+        // ==============================
+
+        const telegramResponse =
+            await fetch(
+                `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
+                {
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+
+                    body: JSON.stringify({
+
+                        chat_id: CHAT_ID,
+
+                        text: message,
+
+                        parse_mode: 'HTML',
+
+                        disable_web_page_preview: false
+
+                    })
+                }
+            );
+
+
+        const telegramResult =
+            await telegramResponse.json();
+
+
+        console.log(
+            'Telegram response:',
+            telegramResult
         );
 
-        const result = await response.json();
 
-        if (!response.ok || !result.ok) {
+        // ==============================
+        // TELEGRAM ERROR
+        // ==============================
+
+        if (
+            !telegramResponse.ok ||
+            !telegramResult.ok
+        ) {
 
             console.error(
-                'Telegram error:',
-                result
+                '❌ Telegram error:',
+                telegramResult
             );
 
             return res.status(500).json({
-                success: false
+
+                success: false,
+
+                error: 'Telegram API error',
+
+                telegram: telegramResult
+
             });
+
         }
 
+
+        // ==============================
+        // SUCCESS
+        // ==============================
+
+        console.log(
+            '✅ Telegram message sent'
+        );
+
+
         return res.status(200).json({
+
             success: true
+
         });
+
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            '❌ SERVER ERROR:',
+            error
+        );
+
 
         return res.status(500).json({
-            success: false
+
+            success: false,
+
+            error: error.message
+
         });
+
     }
+
 }
 
+
+// ======================================
+// HTML ESCAPE
+// ======================================
 
 function escapeHtml(value) {
 
     return String(value)
+
         .replace(/&/g, '&amp;')
+
         .replace(/</g, '&lt;')
+
         .replace(/>/g, '&gt;')
+
         .replace(/"/g, '&quot;')
+
         .replace(/'/g, '&#039;');
 
 }
