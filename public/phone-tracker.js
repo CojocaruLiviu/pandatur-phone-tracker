@@ -9,9 +9,7 @@
         try {
 
             const data = {
-                phone: link.getAttribute('href') || '',
                 page: window.location.href,
-                title: document.title || '',
                 timestamp: new Date().toISOString()
             };
 
